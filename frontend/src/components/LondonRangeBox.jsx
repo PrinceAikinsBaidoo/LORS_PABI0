@@ -37,7 +37,7 @@ export default function LondonRangeBox({ range, price, instrument }) {
         <span className={`text-xs font-medium ${zoneColor}`}>{zoneLabel}</span>
       </div>
 
-      <div className="relative h-8 bg-surface rounded-lg overflow-hidden mb-3 border border-border">
+      <div className="relative h-8 neo-inset overflow-hidden mb-3">
         <div
           className="absolute inset-y-0 left-0 bg-brand-blue/20 border-r border-brand-blue/40"
           style={{ width: '100%' }}

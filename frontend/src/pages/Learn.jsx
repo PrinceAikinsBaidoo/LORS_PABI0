@@ -91,7 +91,7 @@ function Article({ article }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-surface/50"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.03] transition-colors"
       >
         <span className="font-medium text-sm pr-4">{article.title}</span>
         {open ? (
@@ -118,10 +118,10 @@ function VideoLesson({ video }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-surface/50"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.03] transition-colors"
       >
         <div className="flex items-center gap-3 pr-4">
-          <div className="w-9 h-9 rounded-lg bg-brand-blue/20 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl neo-surface flex items-center justify-center shrink-0">
             <Play className="w-4 h-4 text-primary" />
           </div>
           <div>
@@ -139,7 +139,7 @@ function VideoLesson({ video }) {
         <div className="px-4 pb-4 border-t border-divider pt-3">
           <p className="text-sm text-text-secondary mb-3">{video.description}</p>
           {video.youtubeId ? (
-            <div className="aspect-video rounded-lg overflow-hidden bg-black mb-3">
+            <div className="aspect-video rounded-2xl overflow-hidden neo-inset mb-3">
               <iframe
                 title={video.title}
                 src={`https://www.youtube.com/embed/${video.youtubeId}`}
@@ -153,7 +153,7 @@ function VideoLesson({ video }) {
               href={video.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-8 rounded-lg bg-surface border border-border text-sm text-teal-accent hover:border-teal-accent mb-3"
+              className="flex items-center justify-center gap-2 py-8 rounded-2xl neo-inset text-sm text-teal-accent hover:border-teal-accent/30 mb-3"
             >
               <Play className="w-5 h-5" /> Browse Callisto FX Raw on YouTube
             </a>
@@ -175,7 +175,7 @@ function VideoLesson({ video }) {
 export default function Learn() {
   return (
     <div>
-      <h1 className="text-xl font-bold mb-1">Learn</h1>
+      <h1 className="page-title mb-1">Learn</h1>
       <p className="text-text-muted text-sm mb-4">Trading basics + liquidity concepts</p>
 
       <h2 className="text-sm font-semibold text-teal-accent mb-2">Video lessons</h2>

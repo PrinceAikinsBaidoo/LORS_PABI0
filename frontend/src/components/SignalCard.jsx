@@ -51,7 +51,7 @@ export default function SignalCard({
   if (!signal) {
     return (
       <div className="glass-card p-6 mb-4 text-center">
-        <div className="w-16 h-16 rounded-full bg-teal-light/10 border border-teal-accent/30 flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 rounded-full neo-surface flex items-center justify-center mx-auto mb-4 border border-teal-accent/20">
           <span className="text-2xl">👁</span>
         </div>
         <p className="text-text-secondary text-sm">
@@ -76,8 +76,8 @@ export default function SignalCard({
       <div className="flex items-start justify-between mb-4">
         <div>
           <span
-            className={`inline-block px-4 py-2 rounded-lg text-lg font-bold ${
-              isBuy ? 'bg-buy/15 text-buy' : 'bg-sell/15 text-sell'
+            className={`inline-block px-4 py-2 rounded-xl text-lg font-bold neo-surface ${
+              isBuy ? 'text-buy border border-buy/30' : 'text-sell border border-sell/30'
             }`}
           >
             {isBuy ? '🟢' : '🔴'} {signal.direction} {instLabel}
@@ -96,12 +96,12 @@ export default function SignalCard({
         </div>
       </div>
 
-      <div className="bg-surface/50 rounded-lg p-3 mb-3">
+      <div className="neo-inset p-3 mb-3">
         <LevelRow label="Entry" price={formatPrice(signal.instrument, signal.entry)} />
         <LevelRow label="Stop Loss" price={formatPrice(signal.instrument, signal.sl)} dollars={signal.slDollars} accent="text-sell" />
       </div>
 
-      <div className="bg-teal-muted/10 border border-teal-accent/20 rounded-lg p-3 mb-4">
+      <div className="neo-panel-accent p-3 mb-4">
         <p className="text-xs font-semibold text-teal-accent mb-2">Profit management</p>
         {levels.length > 0 ? levels.map((lvl) => (
           <LevelRow
@@ -132,7 +132,7 @@ export default function SignalCard({
       )}
 
       {explanation && (
-        <div className="bg-teal-muted/30 border border-teal-accent/20 rounded-lg p-3 mb-4">
+        <div className="neo-panel-accent p-3 mb-4">
           <p className="text-sm text-text-secondary leading-relaxed">{explanation}</p>
         </div>
       )}
@@ -142,21 +142,21 @@ export default function SignalCard({
           type="button"
           onClick={onVoice}
           disabled={voiceLoading}
-          className="flex-1 min-w-[100px] px-3 py-2 rounded-lg bg-brand-blue text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="neo-btn neo-btn-primary flex-1 min-w-[100px] disabled:opacity-50"
         >
           {voiceLoading ? 'Loading...' : '🔊 Voice'}
         </button>
         <button
           type="button"
           onClick={onCopy}
-          className="flex-1 min-w-[100px] px-3 py-2 rounded-lg bg-surface border border-border text-sm font-medium hover:border-teal-accent"
+          className="neo-btn neo-btn-ghost flex-1 min-w-[100px]"
         >
           Copy MT5
         </button>
         <button
           type="button"
           onClick={onLogTrade}
-          className="flex-1 min-w-[100px] px-3 py-2 rounded-lg bg-teal-accent/20 border border-teal-accent/40 text-teal-accent text-sm font-medium"
+          className="neo-btn neo-btn-teal flex-1 min-w-[100px]"
         >
           I took this
         </button>

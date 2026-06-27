@@ -31,7 +31,7 @@ export default function SignalHistory() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold mb-1">Signal History</h1>
+      <h1 className="page-title mb-1">Signal History</h1>
       <p className="text-text-muted text-sm mb-4">Graded from real price action after each signal</p>
 
       <div className="grid grid-cols-4 gap-2 mb-4">
@@ -59,11 +59,7 @@ export default function SignalHistory() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-xs border ${
-              filter === f
-                ? 'bg-brand-black text-white border-brand-black'
-                : 'bg-surface border-border text-text-muted'
-            }`}
+            className={`neo-chip text-xs ${filter === f ? 'neo-chip-active' : ''}`}
           >
             {f === 'all' ? 'All' : instrumentShort(f)}
           </button>

@@ -5,11 +5,7 @@ export default function ModeToggle({ mode, onChange, sessionStatus }) {
         <button
           type="button"
           onClick={() => onChange('live')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            mode === 'live'
-              ? 'bg-success/20 text-buy border border-buy/30'
-              : 'bg-surface text-text-muted border border-border'
-          }`}
+          className={`neo-chip ${mode === 'live' ? 'neo-chip-buy' : ''}`}
         >
           <span className="inline-flex items-center gap-1.5">
             {mode === 'live' && (
@@ -21,11 +17,7 @@ export default function ModeToggle({ mode, onChange, sessionStatus }) {
         <button
           type="button"
           onClick={() => onChange('demo')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            mode === 'demo'
-              ? 'bg-primary/20 text-primary border border-primary/30'
-              : 'bg-surface text-text-muted border border-border'
-          }`}
+          className={`neo-chip ${mode === 'demo' ? 'neo-chip-blue' : ''}`}
         >
           <span className="inline-flex items-center gap-1.5">
             {mode === 'demo' && (

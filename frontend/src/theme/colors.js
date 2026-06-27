@@ -15,16 +15,16 @@ export const AppTheme = {
 
 export const AppColorScheme = {
   dark: {
-    background: '#09090B',
-    surface: '#18181B',
-    border: '#3F3F46',
-    divider: '#27272A',
-    textPrimary: '#FAFAFA',
-    textSecondary: '#A1A1AA',
-    textMuted: '#71717A',
-    primary: '#3B82F6',
-    chipBackground: '#27272A',
-    shadow: 'rgba(0,0,0,0.08)',
+    background: '#161b28',
+    surface: '#1e2433',
+    border: 'rgba(255,255,255,0.08)',
+    divider: 'rgba(255,255,255,0.06)',
+    textPrimary: '#f1f5f9',
+    textSecondary: '#94a3b8',
+    textMuted: '#64748b',
+    primary: '#60a5fa',
+    chipBackground: '#252b3c',
+    shadow: 'rgba(0,0,0,0.45)',
   },
   light: {
     background: '#FAFAFA',

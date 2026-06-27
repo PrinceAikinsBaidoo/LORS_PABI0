@@ -41,7 +41,7 @@ export default function RiskCalculator() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold mb-1">Risk Calculator</h1>
+      <h1 className="page-title mb-1">Risk Calculator</h1>
       <p className="text-text-muted text-sm mb-4">Updates live as you type</p>
 
       <div className="glass-card p-4 space-y-4 mb-4">
@@ -53,10 +53,8 @@ export default function RiskCalculator() {
                 key={inst}
                 type="button"
                 onClick={() => onInstrumentChange(inst)}
-                className={`flex-1 min-w-[90px] py-2 rounded-lg text-sm border ${
-                  instrument === inst
-                    ? 'bg-brand-blue/20 border-brand-blue text-primary'
-                    : 'bg-surface border-border text-text-muted'
+                className={`flex-1 min-w-[90px] py-2 text-sm neo-chip ${
+                  instrument === inst ? 'neo-chip-blue' : ''
                 }`}
               >
                 {META[inst].label}
@@ -78,13 +76,13 @@ export default function RiskCalculator() {
               step={step || meta.inputStep}
               value={value}
               onChange={(e) => set(Number(e.target.value))}
-              className="w-full bg-surface border border-border rounded-lg px-3 py-2 font-mono focus:border-teal-accent outline-none"
+              className="neo-input font-mono"
             />
           </div>
         ))}
       </div>
 
-      <div className="glass-card p-4 border border-teal-accent/30">
+      <div className="glass-card neo-panel-accent p-4">
         <div className="flex justify-between items-center mb-3">
           <span className={`font-bold ${direction === 'BUY' ? 'text-buy' : 'text-sell'}`}>
             {direction}

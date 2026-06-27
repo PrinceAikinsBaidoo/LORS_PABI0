@@ -277,7 +277,7 @@ export default function LiveSignal() {
   return (
     <div>
       {toast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-success text-white px-4 py-2 rounded-lg text-sm shadow-lg">
+        <div className="glass-toast fixed top-16 left-1/2 -translate-x-1/2 z-50 text-white px-4 py-2 rounded-2xl text-sm">
           {toast}
         </div>
       )}
@@ -291,10 +291,8 @@ export default function LiveSignal() {
               key={inst}
               type="button"
               onClick={() => setInstrument(inst)}
-              className={`flex-1 py-1.5 rounded-lg text-xs border ${
-                instrument === inst
-                  ? 'bg-teal-accent/20 border-teal-accent text-teal-accent'
-                  : 'bg-surface border-border text-text-muted'
+              className={`flex-1 py-1.5 text-xs neo-chip ${
+                instrument === inst ? 'neo-chip-active' : ''
               }`}
             >
               {instrumentShort(inst)}
@@ -313,7 +311,7 @@ export default function LiveSignal() {
             <select
               value={demoDate}
               onChange={(e) => setDemoDate(e.target.value)}
-              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm focus:border-teal-accent outline-none"
+              className="neo-input neo-select w-full text-sm"
             >
               {demoDates.map((d) => (
                 <option key={d} value={d}>
@@ -328,7 +326,7 @@ export default function LiveSignal() {
               <button
                 type="button"
                 onClick={() => (replaying ? stopReplay() : startReplay(allSignals, demoDate))}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue/20 border border-brand-blue/40 text-primary text-xs font-medium"
+                className="neo-btn neo-btn-primary flex items-center gap-1.5 text-xs"
               >
                 {replaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                 {replaying ? 'Pause' : 'Replay trades'}
@@ -336,7 +334,7 @@ export default function LiveSignal() {
               <button
                 type="button"
                 onClick={() => startReplay(allSignals, demoDate)}
-                className="p-1.5 rounded-lg border border-border text-text-muted hover:text-text-secondary"
+                className="neo-btn neo-btn-ghost neo-btn-icon"
                 title="Restart replay"
               >
                 <RotateCcw className="w-3.5 h-3.5" />

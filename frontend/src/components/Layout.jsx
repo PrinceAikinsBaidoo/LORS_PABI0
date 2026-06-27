@@ -10,21 +10,25 @@ const nav = [
 
 export default function Layout() {
   return (
-    <div className="min-h-screen flex flex-col max-w-lg mx-auto">
-      <header className="sticky top-0 z-50 bg-brand-black px-4 py-3 flex items-center justify-between border-b border-border">
+    <div className="app-shell min-h-screen flex flex-col max-w-lg mx-auto">
+      <header className="glass-header sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-teal-accent" />
+          <div className="w-8 h-8 rounded-xl neo-surface flex items-center justify-center">
+            <Activity className="w-4 h-4 text-teal-accent" />
+          </div>
           <span className="font-bold text-lg tracking-tight">PipSense</span>
           <span className="text-xs text-text-muted">🇬🇭</span>
         </div>
-        <span className="text-xs text-teal-accent font-medium">London OR</span>
+        <span className="text-xs text-teal-accent font-medium px-2.5 py-1 rounded-full neo-chip neo-chip-active">
+          London OR
+        </span>
       </header>
 
       <main className="flex-1 px-4 py-4 pb-24">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-brand-black border-t border-border z-50">
+      <nav className="glass-nav fixed bottom-0 left-0 right-0 z-50">
         <div className="max-w-lg mx-auto flex">
           {nav.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -32,8 +36,8 @@ export default function Layout() {
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `flex-1 flex flex-col items-center gap-0.5 py-3 text-xs transition-colors ${
-                  isActive ? 'text-teal-accent' : 'text-text-muted hover:text-text-secondary'
+                `relative flex-1 flex flex-col items-center gap-0.5 py-3 text-xs transition-colors ${
+                  isActive ? 'text-teal-accent nav-link-active' : 'text-text-muted hover:text-text-secondary'
                 }`
               }
             >
