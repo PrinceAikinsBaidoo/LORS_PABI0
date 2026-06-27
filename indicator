@@ -1,0 +1,418 @@
+//@version=5
+strategy("London Open Range Strategy [QuillEdge]", 
+     shorttitle="LORS·QE", 
+     overlay=true, 
+     margin_long=100, 
+     margin_short=100,
+     default_qty_type=strategy.fixed,
+     default_qty_value=0.04,
+     initial_capital=10000,
+     currency=currency.USD,
+     max_bars_back=500)
+
+// ============================================================
+// INPUTS
+// ============================================================
+var string GRP_SESSION = "Session Settings"
+var string GRP_RISK    = "Risk Management"
+var string GRP_DISPLAY = "Display Settings"
+
+londonHour   = input.int(7,    "London Open Hour (GMT)",           minval=0,  maxval=23, group=GRP_SESSION)
+londonMinute = input.int(0,    "London Open Minute (GMT)",         minval=0,  maxval=59, group=GRP_SESSION)
+
+i_slBuffer   = input.float(20.0,  "XAUUSD SL Buffer (pips)",      minval=0,             group=GRP_RISK)
+i_riskFloor  = input.float(50.0,  "Risk Floor (pips/points)",      minval=1,             group=GRP_RISK)
+i_riskCapXAU = input.float(150.0, "XAUUSD Risk Cap (pips)",        minval=50,            group=GRP_RISK)
+i_riskCapBTC = input.float(234.0, "BTCUSD Risk Cap (points)",      minval=50,            group=GRP_RISK)
+i_greenMin   = input.float(40.0,  "Green Zone Min Better (pips)",  minval=1,             group=GRP_RISK)
+i_greenMax   = input.float(60.0,  "Green Zone Max Better (pips)",  minval=1,             group=GRP_RISK)
+i_maxTrades  = input.int(6,       "Max Trades Per Day",            minval=1, maxval=20,  group=GRP_RISK)
+i_maxConsec  = input.int(4,       "Max Consecutive Losses",        minval=1,             group=GRP_RISK)
+
+i_showZone   = input.bool(true,  "Show London Range Zone",         group=GRP_DISPLAY)
+i_showLabels = input.bool(true,  "Show Trade Labels",              group=GRP_DISPLAY)
+i_showTable  = input.bool(true,  "Show Daily Stats Table",         group=GRP_DISPLAY)
+
+// ============================================================
+// SYMBOL DETECTION
+// ============================================================
+isXAU = str.contains(syminfo.ticker, "XAU")
+isBTC = str.contains(syminfo.ticker, "BTC")
+
+pipMult  = isXAU ? 10.0 : 1.0
+pipSize  = syminfo.mintick * pipMult
+
+slBuf    = isXAU ? i_slBuffer * pipSize : 0.0
+riskCap  = isXAU ? i_riskCapXAU * pipSize : i_riskCapBTC * pipSize
+riskFlr  = i_riskFloor  * pipSize
+grnMin   = i_greenMin   * pipSize
+grnMax   = i_greenMax   * pipSize
+
+// ============================================================
+// TIME HELPERS
+// ============================================================
+isLondonCandle = (hour(time, "GMT+0") == londonHour and 
+                  minute(time, "GMT+0") == londonMinute and 
+                  timeframe.in_seconds() == 900)
+
+isNewDay = ta.change(time("D")) != 0
+
+// ============================================================
+// PERSISTENT STATE
+// ============================================================
+var float  lHigh         = na
+var float  lLow          = na
+var bool   rangeSet      = false
+var int    dailyTrades   = 0
+var int    consecLoss    = 0
+var bool   halted        = false
+var bool   inTrade       = false
+var string tradeDir      = na
+var float  entryPx       = na
+var float  curSL         = na
+var float  curTP1        = na
+var float  curTP2        = na
+var float  curTP3        = na
+var float  lastLongEntry  = na
+var float  lastShortEntry = na
+
+// ============================================================
+// DAY RESET
+// ============================================================
+if isNewDay
+    lHigh        := na
+    lLow         := na
+    rangeSet     := false
+    dailyTrades  := 0
+    consecLoss   := 0
+    halted       := false
+    lastLongEntry  := na
+    lastShortEntry := na
+
+// ============================================================
+// CAPTURE LONDON RANGE
+// ============================================================
+if isLondonCandle
+    lHigh    := high
+    lLow     := low
+    rangeSet := true
+
+// ============================================================
+// RANGE BOX
+// ============================================================
+var box rBox = na
+if rangeSet and i_showZone and isLondonCandle
+    if not na(rBox)
+        box.delete(rBox)
+    rBox := box.new(bar_index, lHigh, bar_index + 60, lLow,
+         border_color=color.new(color.blue, 30),
+         bgcolor=color.new(color.blue, 88),
+         border_width=1)
+
+if rangeSet and i_showZone and not na(rBox)
+    box.set_right(rBox, bar_index + 1)
+
+// ============================================================
+// RISK / LEVEL CALCULATION
+// ============================================================
+calcRiskLong  = math.max(riskFlr, math.min(riskCap, close - (lLow  - slBuf)))
+calcRiskShort = math.max(riskFlr, math.min(riskCap, (lHigh + slBuf) - close))
+
+slLong   = close - calcRiskLong
+slShort  = close + calcRiskShort
+tp1Long  = close + calcRiskLong
+tp2Long  = close + calcRiskLong  * 2.0
+tp3Long  = close + calcRiskLong  * 3.0
+tp1Short = close - calcRiskShort
+tp2Short = close - calcRiskShort * 2.0
+tp3Short = close - calcRiskShort * 3.0
+
+// ============================================================
+// SIGNAL CONDITIONS
+// ============================================================
+canTrade = rangeSet and not halted and not inTrade and
+           dailyTrades < i_maxTrades and consecLoss < i_maxConsec and
+           not isLondonCandle and not na(lHigh) and not na(lLow)
+
+// A new touch means price crossed INTO the level from the other side
+// High crossed up into LH = came from below, now touching high
+// Low crossed down into LL = came from above, now touching low
+newTouchHigh = high >= lHigh and low[1] < lHigh  // previous bar was below LH, this bar reached it
+newTouchLow  = low  <= lLow  and high[1] > lLow  // previous bar was above LL, this bar reached it
+
+// Better entry filter for consecutive same-direction signals
+// Uses persistent last entry price — survives partial TP closes
+// SHORT: new entry must be HIGHER than last short entry
+// LONG:  new entry must be LOWER than last long entry
+betterShortEntry = na(lastShortEntry) or close > lastShortEntry
+betterLongEntry  = na(lastLongEntry)  or close < lastLongEntry
+
+sigLongBreak  = canTrade and newTouchHigh and close > lHigh  and betterLongEntry
+sigShortSweep = canTrade and newTouchHigh and close <= lHigh and close >= lLow and betterShortEntry
+sigShortBreak = canTrade and newTouchLow  and close < lLow   and betterShortEntry
+sigLongSweep  = canTrade and newTouchLow  and close >= lLow  and close <= lHigh and betterLongEntry
+
+longSig  = sigLongBreak  or sigLongSweep
+shortSig = sigShortBreak or sigShortSweep
+
+// ============================================================
+// ZONE STATE
+// ============================================================
+inGreen = inTrade and ((tradeDir == "long" and close > entryPx) or (tradeDir == "short" and close < entryPx))
+inRed   = inTrade and ((tradeDir == "long" and close < entryPx) or (tradeDir == "short" and close > entryPx))
+
+betterLong  = (entryPx - close) >= grnMin and (entryPx - close) <= grnMax
+betterShort = (close - entryPx) >= grnMin and (close - entryPx) <= grnMax
+
+greenLongOK  = inGreen and longSig  and tradeDir == "long"  and betterLong
+greenShortOK = inGreen and shortSig and tradeDir == "short" and betterShort
+redFlipLong  = inRed   and longSig  and tradeDir == "short"
+redFlipShort = inRed   and shortSig and tradeDir == "long"
+
+// ============================================================
+// QTY SPLITS
+// ============================================================
+qty1 = 0.02
+qty2 = 0.01
+qty3 = 0.01
+
+// ============================================================
+// TRADE EXECUTION — fully inlined
+// ============================================================
+
+// RED ZONE FLIP TO LONG
+if redFlipLong
+    strategy.close_all(comment="RedZone->Long")
+    inTrade     := false
+    strategy.entry("Long", strategy.long, qty=0.04, comment="Flip Long")
+    strategy.exit("L-TP1", "Long", qty=qty1, limit=tp1Long, stop=slLong, comment="TP1")
+    strategy.exit("L-TP2", "Long", qty=qty2, limit=tp2Long, stop=slLong, comment="TP2")
+    strategy.exit("L-TP3", "Long", qty=qty3, limit=tp3Long, stop=slLong, comment="TP3")
+    inTrade        := true
+    tradeDir       := "long"
+    entryPx        := close
+    curSL          := slLong
+    curTP1         := tp1Long
+    curTP2         := tp2Long
+    curTP3         := tp3Long
+    lastLongEntry  := close
+    lastShortEntry := na
+    dailyTrades    := dailyTrades + 1
+
+// RED ZONE FLIP TO SHORT
+else if redFlipShort
+    strategy.close_all(comment="RedZone->Short")
+    inTrade     := false
+    strategy.entry("Short", strategy.short, qty=0.04, comment="Flip Short")
+    strategy.exit("S-TP1", "Short", qty=qty1, limit=tp1Short, stop=slShort, comment="TP1")
+    strategy.exit("S-TP2", "Short", qty=qty2, limit=tp2Short, stop=slShort, comment="TP2")
+    strategy.exit("S-TP3", "Short", qty=qty3, limit=tp3Short, stop=slShort, comment="TP3")
+    inTrade        := true
+    tradeDir       := "short"
+    entryPx        := close
+    curSL          := slShort
+    curTP1         := tp1Short
+    curTP2         := tp2Short
+    curTP3         := tp3Short
+    lastShortEntry := close
+    lastLongEntry  := na
+    dailyTrades    := dailyTrades + 1
+
+// FRESH LONG
+else if not inTrade and longSig
+    strategy.entry("Long", strategy.long, qty=0.04, comment="Long")
+    strategy.exit("L-TP1", "Long", qty=qty1, limit=tp1Long, stop=slLong, comment="TP1")
+    strategy.exit("L-TP2", "Long", qty=qty2, limit=tp2Long, stop=slLong, comment="TP2")
+    strategy.exit("L-TP3", "Long", qty=qty3, limit=tp3Long, stop=slLong, comment="TP3")
+    inTrade        := true
+    tradeDir       := "long"
+    entryPx        := close
+    curSL          := slLong
+    curTP1         := tp1Long
+    curTP2         := tp2Long
+    curTP3         := tp3Long
+    lastLongEntry  := close
+    lastShortEntry := na
+    dailyTrades    := dailyTrades + 1
+
+// FRESH SHORT
+else if not inTrade and shortSig
+    strategy.entry("Short", strategy.short, qty=0.04, comment="Short")
+    strategy.exit("S-TP1", "Short", qty=qty1, limit=tp1Short, stop=slShort, comment="TP1")
+    strategy.exit("S-TP2", "Short", qty=qty2, limit=tp2Short, stop=slShort, comment="TP2")
+    strategy.exit("S-TP3", "Short", qty=qty3, limit=tp3Short, stop=slShort, comment="TP3")
+    inTrade        := true
+    tradeDir       := "short"
+    entryPx        := close
+    curSL          := slShort
+    curTP1         := tp1Short
+    curTP2         := tp2Short
+    curTP3         := tp3Short
+    lastShortEntry := close
+    lastLongEntry  := na
+    dailyTrades    := dailyTrades + 1
+
+// GREEN ZONE BETTER LONG
+else if greenLongOK
+    strategy.close_all(comment="Green->BetterLong")
+    inTrade     := false
+    strategy.entry("Long", strategy.long, qty=0.04, comment="Better Long")
+    strategy.exit("L-TP1", "Long", qty=qty1, limit=tp1Long, stop=slLong, comment="TP1")
+    strategy.exit("L-TP2", "Long", qty=qty2, limit=tp2Long, stop=slLong, comment="TP2")
+    strategy.exit("L-TP3", "Long", qty=qty3, limit=tp3Long, stop=slLong, comment="TP3")
+    inTrade        := true
+    tradeDir       := "long"
+    entryPx        := close
+    curSL          := slLong
+    curTP1         := tp1Long
+    curTP2         := tp2Long
+    curTP3         := tp3Long
+    lastLongEntry  := close
+    lastShortEntry := na
+    dailyTrades    := dailyTrades + 1
+
+// GREEN ZONE BETTER SHORT
+else if greenShortOK
+    strategy.close_all(comment="Green->BetterShort")
+    inTrade     := false
+    strategy.entry("Short", strategy.short, qty=0.04, comment="Better Short")
+    strategy.exit("S-TP1", "Short", qty=qty1, limit=tp1Short, stop=slShort, comment="TP1")
+    strategy.exit("S-TP2", "Short", qty=qty2, limit=tp2Short, stop=slShort, comment="TP2")
+    strategy.exit("S-TP3", "Short", qty=qty3, limit=tp3Short, stop=slShort, comment="TP3")
+    inTrade        := true
+    tradeDir       := "short"
+    entryPx        := close
+    curSL          := slShort
+    curTP1         := tp1Short
+    curTP2         := tp2Short
+    curTP3         := tp3Short
+    lastShortEntry := close
+    lastLongEntry  := na
+    dailyTrades    := dailyTrades + 1
+
+// ============================================================
+// SYNC inTrade WITH ACTUAL POSITION
+// ============================================================
+if strategy.position_size == 0
+    inTrade  := false
+    tradeDir := na
+    entryPx  := na
+
+// ============================================================
+// CONSECUTIVE LOSS TRACKER
+// ============================================================
+closedCount   = strategy.closedtrades
+tradeChanged  = ta.change(closedCount) != 0
+if closedCount > 0
+    lastPnl = strategy.closedtrades.profit(closedCount - 1)
+    if tradeChanged
+        if lastPnl < 0
+            consecLoss := consecLoss + 1
+        else
+            consecLoss := 0
+    if consecLoss >= i_maxConsec or dailyTrades >= i_maxTrades
+        halted := true
+
+// ============================================================
+// PLOTS
+// ============================================================
+plot(rangeSet ? lHigh : na, "London High", color=color.new(color.blue,  20), style=plot.style_linebr, linewidth=1)
+plot(rangeSet ? lLow  : na, "London Low",  color=color.new(color.blue,  20), style=plot.style_linebr, linewidth=1)
+plot(inTrade  ? curSL : na, "Stop Loss",   color=color.new(color.red,   10), style=plot.style_linebr, linewidth=1)
+plot(inTrade  ? curTP1: na, "TP1",         color=color.new(color.green, 30), style=plot.style_linebr, linewidth=1)
+plot(inTrade  ? curTP2: na, "TP2",         color=color.new(color.green, 10), style=plot.style_linebr, linewidth=1)
+plot(inTrade  ? curTP3: na, "TP3", color=color.new(color.teal, 10), style=plot.style_linebr, linewidth=1)
+
+// ============================================================
+// LABELS
+// ============================================================
+if i_showLabels
+    // Build label text with full SL/TP details
+    longLabelText  = "▲ LONG\nEntry : " + str.tostring(close,   "#.##") +
+         "\nSL    : "        + str.tostring(slLong,  "#.##") +
+         "\nTP1   : "        + str.tostring(tp1Long, "#.##") +
+         "\nTP2   : "        + str.tostring(tp2Long, "#.##") +
+         "\nTP3   : "        + str.tostring(tp3Long, "#.##")
+
+    shortLabelText = "▼ SHORT\nEntry : " + str.tostring(close,    "#.##") +
+         "\nSL    : "         + str.tostring(slShort,  "#.##") +
+         "\nTP1   : "         + str.tostring(tp1Short, "#.##") +
+         "\nTP2   : "         + str.tostring(tp2Short, "#.##") +
+         "\nTP3   : "         + str.tostring(tp3Short, "#.##")
+
+    // Scenario A: touched high, closed above → LONG Breakout
+    if sigLongBreak and canTrade
+        label.new(bar_index, low,
+             "── Breakout High ──\n" + longLabelText,
+             color=color.new(color.green, 10), textcolor=color.white,
+             style=label.style_label_up, size=size.small)
+
+    // Scenario B: touched high, closed inside → SHORT Sweep
+    else if sigShortSweep and canTrade
+        label.new(bar_index, high,
+             "── Sweep High ──\n" + shortLabelText,
+             color=color.new(color.red, 10), textcolor=color.white,
+             style=label.style_label_down, size=size.small)
+
+    // Scenario C: touched low, closed below → SHORT Breakout
+    else if sigShortBreak and canTrade
+        label.new(bar_index, high,
+             "── Breakout Low ──\n" + shortLabelText,
+             color=color.new(color.red, 10), textcolor=color.white,
+             style=label.style_label_down, size=size.small)
+
+    // Scenario D: touched low, closed inside → LONG Sweep
+    else if sigLongSweep and canTrade
+        label.new(bar_index, low,
+             "── Sweep Low ──\n" + longLabelText,
+             color=color.new(color.green, 10), textcolor=color.white,
+             style=label.style_label_up, size=size.small)
+
+    // Red zone flip labels
+    if redFlipLong
+        label.new(bar_index, hl2,
+             "── FLIP -> LONG ──\n" + longLabelText,
+             color=color.new(color.orange, 10), textcolor=color.white,
+             style=label.style_label_left, size=size.small)
+
+    else if redFlipShort
+        label.new(bar_index, hl2,
+             "── FLIP -> SHORT ──\n" + shortLabelText,
+             color=color.new(color.orange, 10), textcolor=color.white,
+             style=label.style_label_left, size=size.small)
+
+// ============================================================
+// STATS TABLE
+// ============================================================
+var table tbl = table.new(position.top_right, 2, 7,
+     bgcolor=color.new(color.black, 70),
+     border_color=color.new(color.gray, 40),
+     border_width=1,
+     frame_color=color.new(color.gray, 40),
+     frame_width=1)
+
+if i_showTable and barstate.islast
+    table.cell(tbl, 0, 0, "LORS - QuillEdge",
+         text_color=color.new(color.aqua, 0), text_size=size.small,
+         bgcolor=color.new(color.navy, 50))
+    table.cell(tbl, 1, 0, syminfo.ticker,
+         text_color=color.new(color.aqua, 0), text_size=size.small,
+         bgcolor=color.new(color.navy, 50))
+    table.cell(tbl, 0, 1, "Trades Today",   text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 1, str.tostring(dailyTrades) + " / " + str.tostring(i_maxTrades),
+         text_color=dailyTrades >= i_maxTrades ? color.red : color.lime, text_size=size.small)
+    table.cell(tbl, 0, 2, "Consec Losses",  text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 2, str.tostring(consecLoss) + " / " + str.tostring(i_maxConsec),
+         text_color=consecLoss >= i_maxConsec ? color.red : color.yellow, text_size=size.small)
+    table.cell(tbl, 0, 3, "Halted",         text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 3, halted ? "YES" : "NO",
+         text_color=halted ? color.red : color.lime, text_size=size.small)
+    table.cell(tbl, 0, 4, "In Trade",       text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 4, inTrade ? tradeDir : "-",
+         text_color=inTrade ? (tradeDir == "long" ? color.lime : color.red) : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 5, "London High",    text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 5, rangeSet ? str.tostring(lHigh, "#.##") : "-",
+         text_color=color.new(color.blue, 0), text_size=size.small)
+    table.cell(tbl, 0, 6, "London Low",     text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 6, rangeSet ? str.tostring(lLow, "#.##") : "-",
+         text_color=color.new(color.blue, 0), text_size=size.small)

@@ -1,0 +1,365 @@
+# PipSense — Overview & PRD
+
+---
+
+## Overview
+
+**PipSense** is a beginner-friendly, AI-powered trading signal platform built for Ghanaian retail forex and gold traders. It monitors the London trading session every day, detects high-probability trade setups on XAUUSD (Gold) and BTCUSD (Bitcoin) using the London Open Range strategy, and delivers clear actionable signals via a web app, voice announcement, and Telegram — in plain English, with exact entry, stop loss, and take profit levels, and real dollar risk calculations tied to the user's account and broker.
+
+**Built for:** Cursor Hackathon UCC 2026 + Npontu Technologies Challenge Track
+
+**Team:** Solo (Quill) — built to be demo-ready in 9 hours
+
+---
+
+## Problem Statement
+
+Ghana has a rapidly growing retail trading community — hundreds of thousands of people trading forex and gold on XM, Exness, and Headway. Most are losing money consistently because:
+
+- They follow signal groups with no explanation and no accountability
+- They have no structured entry framework — they chase price randomly
+- They don't know how much they're actually risking per trade in real dollar terms
+- Every tool available assumes prior knowledge — nothing is built for a true beginner
+- The London session (7AM–11AM GMT = Ghana time) is the best window to trade, but most miss it or trade it without structure
+
+---
+
+## The Solution
+
+PipSense solves this with one focused platform built around a single proven strategy — the **London Open Range**. At 7AM Ghana time every day, PipSense captures the first 15-minute candle of the London session and monitors how price interacts with its high and low. The moment a high-probability pattern fires, PipSense:
+
+1. Updates the web app with a clear BUY or SELL card
+2. Uses the **Snwolley Agents API** to generate a plain English explanation of why the signal fired
+3. Uses the **Snwolley TTS API** to read the signal aloud as a voice announcement
+4. Sends a formatted message to the **PipSense Telegram channel** instantly
+5. Calculates exact dollar risk and reward based on the user's account size and broker
+
+---
+
+## Signal Logic (The Engine)
+
+Built on the Pine Script strategy already developed and tested:
+
+**Range:** First 15-minute candle at 7:00 AM GMT = London High (LH) + London Low (LL)
+
+**4 Signal Types:**
+
+| Scenario | Condition | Signal |
+|---|---|---|
+| Breakout High | Candle crosses LH from below, closes above | BUY |
+| Sweep High | Candle crosses LH from below, closes back inside | SELL |
+| Breakout Low | Candle crosses LL from above, closes below | SELL |
+| Sweep Low | Candle crosses LL from above, closes back inside | BUY |
+
+**Risk Rules:**
+- XAUUSD: SL = opposite side + 20 pip buffer, floor 50 pips, cap 150 pips
+- BTCUSD: SL = opposite side, no buffer, floor 50 points, cap 234 points
+- TP1 = 1:1 (close 50%), TP2 = 1:2 (close 25%), TP3 = 1:3 (close 25%)
+- Max 6 trades/day, stop after 4 consecutive losses
+- Consecutive same-direction signals only fire if entry is better than the last
+
+---
+
+---
+
+# Product Requirements Document (PRD)
+
+---
+
+## 1. Product Goals
+
+- Deliver a working, demo-ready web app in 9 hours
+- Be genuinely usable by a complete trading beginner
+- Integrate minimum 2 Snwolley APIs (Agents + TTS)
+- Win the UI/UX track with a polished dark terminal aesthetic
+- Qualify for the Npontu Technologies Challenge Track
+
+---
+
+## 2. Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React + Tailwind + Vite |
+| Backend | Python FastAPI |
+| Signal Engine | Python (ported from Pine Script) |
+| Live Market Data | Twelve Data API (15-min OHLC) |
+| Demo Data | Pre-loaded JSON historical candles |
+| AI Explanation | Snwolley Agents API |
+| Voice Announcement | Snwolley TTS API |
+| Telegram Delivery | Telegram Bot API |
+| Frontend Deploy | Vercel |
+| Backend Deploy | Railway |
+
+---
+
+## 3. Screens & Features
+
+---
+
+### Screen 1 — Onboarding
+**Purpose:** Collect user context once. Never ask again.
+
+**Fields:**
+- Broker (XM / Exness / Headway / Other)
+- Account balance (input, toggle GHS/USD)
+- Instruments (Gold / Bitcoin / Both)
+- Lot size (default 0.04, adjustable)
+- Notification preference (Web only / Telegram / Both)
+
+**Behaviour:**
+- Saved to localStorage
+- Skip button for demo/judges
+- Takes under 60 seconds to complete
+
+---
+
+### Screen 2 — Live Signal (Main Screen)
+**Purpose:** The core experience. Everything a trader needs in one view.
+
+**Components:**
+
+**A. Mode Toggle** — top of screen
+- LIVE (green dot, "London Session Active" or "Waiting for London Open")
+- DEMO (blue dot, "Replay Mode — scrub through past signals")
+
+**B. Signal Card** — full width, dominant
+- Large direction badge: 🟢 BUY GOLD or 🔴 SELL GOLD
+- Signal type: Breakout / Sweep
+- Entry, SL, TP1, TP2, TP3 — in price and dollars
+- Plain English explanation (from Snwolley Agents API)
+- Voice button — plays TTS announcement
+- Copy to MT5 button — copies formatted string to clipboard
+- "I took this trade" button — logs it to trade history
+
+**C. London Range Box**
+- Shows today's London High and London Low
+- Current price ticker (live or simulated)
+- Visual zone indicator: price above range / inside / below
+
+**D. Daily Stats Bar**
+- Trades today: X / 6
+- Consecutive losses: X / 4
+- Session status: Active / Halted
+
+**E. No Signal State**
+- If no signal has fired yet: "Monitoring London session... Range set at LH: XXXX | LL: XXXX"
+- If session halted: "Daily limit reached. PipSense resumes tomorrow at 7:00 AM GMT"
+- If outside London session: countdown to next London open
+
+---
+
+### Screen 3 — Signal History
+**Purpose:** Track performance over time.
+
+**Components:**
+- List of all past signals with: date, time, instrument, direction, type, entry, outcome (TP1/TP2/TP3 hit or SL hit), P&L in dollars
+- Win/loss summary: total trades, win rate, net P&L
+- Filter by: instrument, direction, outcome, date range
+- Daily trade counter badge per day
+
+---
+
+### Screen 4 — Risk Calculator
+**Purpose:** Standalone tool, usable without a live signal.
+
+**Inputs:**
+- Instrument (Gold / Bitcoin)
+- Account balance
+- Lot size
+- Entry price
+- Stop loss price
+
+**Outputs:**
+- Risk in pips/points
+- Risk in dollars
+- TP1, TP2, TP3 in price and dollars
+- R:R ratio
+
+**Updates live as user types — no submit button needed**
+
+---
+
+### Screen 5 — Learn
+**Purpose:** Contextual education for beginners.
+
+**Content:**
+- What is the London session?
+- What is a Sweep vs Breakout?
+- What is a Stop Loss / Take Profit?
+- What does R:R mean?
+- How to copy a trade into MT5 (step by step with screenshots)
+- Each article links back from the signal card contextually
+
+---
+
+## 4. Backend API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/signal/current` | GET | Returns current signal or "no signal" state for given instrument |
+| `/signal/history` | GET | Returns all past signals with outcomes |
+| `/range/today` | GET | Returns today's London High and London Low |
+| `/price/live` | GET | Returns current price for XAUUSD or BTCUSD |
+| `/explain` | POST | Sends signal data to Snwolley Agents API, returns plain English explanation |
+| `/voice` | POST | Sends explanation text to Snwolley TTS API, returns WAV audio |
+| `/demo/candles` | GET | Returns historical candle data for replay mode |
+| `/demo/replay` | POST | Accepts a date, runs signal engine on that day's data, returns signals |
+| `/health` | GET | Health check for deployment |
+
+---
+
+## 5. Snwolley API Integration
+
+### Agents API — Signal Explanation
+**Trigger:** Every time a signal fires
+**Prompt sent:**
+```
+You are PipSense, a trading assistant for beginner Ghanaian traders.
+A signal just fired on {instrument}.
+Signal type: {type} (Breakout/Sweep)
+Direction: {direction} (BUY/SELL)
+Entry: {entry}
+Stop Loss: {sl}
+TP1: {tp1}, TP2: {tp2}, TP3: {tp3}
+
+Explain in 2-3 simple sentences why this signal fired and what it means.
+Use plain English. No jargon. The reader is a complete beginner.
+```
+**Response:** 2–3 sentence explanation shown on signal card
+
+---
+
+### TTS API — Voice Announcement
+**Trigger:** Signal fires (auto) or user taps voice button (manual)
+**Text sent:**
+```
+PipSense signal. {BUY/SELL} {Gold/Bitcoin}.
+{Explanation from Agents API}.
+Entry at {entry}. Stop loss at {sl}.
+Take profit targets: {tp1}, {tp2}, and {tp3}.
+```
+**Response:** WAV file played automatically in browser
+
+---
+
+## 6. Telegram Bot
+
+**Message format on signal fire:**
+```
+🟢 BUY GOLD (XAUUSD)
+━━━━━━━━━━━━━━━
+📍 Entry     : 2348.50
+🛑 Stop Loss : 2338.50
+🎯 TP1       : 2358.50
+🎯 TP2       : 2368.50
+🎯 TP3       : 2378.50
+━━━━━━━━━━━━━━━
+📊 Type      : Sweep Low
+⚡ Risk      : 50 pips
+💰 R:R       : 1:2 | 1:3
+🕖 Time      : 7:15 AM GMT
+━━━━━━━━━━━━━━━
+💡 Price swept below London Low
+and closed back inside — buyers
+defended the level. Expect upward move.
+━━━━━━━━━━━━━━━
+PipSense 🇬🇭 | Trade Smart
+```
+
+---
+
+## 7. Demo Mode
+
+**Purpose:** Allow judges to see signals immediately without waiting for London open
+
+**How it works:**
+- Pre-loaded JSON file contains 30 days of XAUUSD + BTCUSD 15-min historical candles
+- Replay engine runs the signal logic on selected day
+- User can pick a date from a calendar and see what signals would have fired
+- Signals animate onto the screen in real time at 10x speed
+- Full signal card, explanation, and voice playback all work in demo mode
+- Voice says "Demo signal" at the start so it's clear it's historical
+
+---
+
+## 8. UI/UX Design Direction
+
+**Theme:** Dark trading terminal — professional but approachable
+**Primary colour:** Deep navy `#0A0F1E`
+**Accent:** Electric green `#00FF88` for BUY, Crimson `#FF3B5C` for SELL
+**Font:** Inter (clean, modern, readable)
+**Card style:** Glassmorphism — subtle blur + border glow
+**Mobile first:** All screens designed for 375px width first, scales up to desktop
+
+**Key design decisions:**
+- Signal direction (BUY/SELL) is the biggest element on screen — can't miss it
+- Dollar amounts are always shown alongside price levels — beginners think in dollars
+- Every piece of jargon has a tap-to-explain tooltip
+- Loading states are friendly: "PipSense is watching the London session for you..."
+
+---
+
+## 9. Build Session Plan
+
+**Session 1 — Fri 6:30–10:30 PM (4 hours)**
+- Vite + React + Tailwind scaffold
+- Routing: 5 screens
+- Onboarding flow complete
+- Signal card UI (static mock data)
+- London range display
+- Risk calculator (fully functional, no backend needed)
+- Learn section content
+- Full UI polish — dark theme, colours, typography
+
+**Session 2 — Fri 11:30 PM–2:00 AM (2.5 hours)**
+- FastAPI project setup
+- Signal engine Python port (from Pine Script)
+- Twelve Data integration (live candles)
+- Demo mode JSON data + replay engine
+- Snwolley Agents API integration
+- Snwolley TTS API integration
+- Telegram bot setup + message formatter
+- All backend endpoints working
+
+**Session 3 — Sat 3:00–5:30 AM (2.5 hours)**
+- Frontend ↔ backend connected
+- Live/Demo toggle functional
+- Voice playback working in browser
+- Signal history + trade log
+- Copy to MT5 button
+- Deploy frontend to Vercel
+- Deploy backend to Railway
+- End-to-end test: signal fires → card updates → voice plays → Telegram arrives
+- Final polish
+
+---
+
+## 10. Hackathon Submission Checklist
+
+| Item | Done? |
+|---|---|
+| Working web app deployed | ⬜ |
+| Public GitHub repo | ⬜ |
+| Demo video (max 3 min) | ⬜ |
+| Pitch deck (8 slides) | ⬜ |
+| Snwolley Agents API used | ⬜ |
+| Snwolley TTS API used | ⬜ |
+| Live demo working | ⬜ |
+| Telegram bot live | ⬜ |
+| Risk calculator working | ⬜ |
+| Demo mode working | ⬜ |
+
+---
+
+## 11. Post-Hackathon Roadmap (For Pitch Slide)
+
+- **v2:** MT5 Expert Advisor for auto-execution
+- **v2:** WhatsApp delivery via Twilio
+- **v2:** New York session signals
+- **v3:** Subscription model — free (3 signals/day) + premium (unlimited)
+- **v3:** More instruments — EURUSD, GBPUSD, NASDAQ
+- **v3:** Social feed — community signal confirmation
+- **v4:** Mobile app (React Native)
+
+---

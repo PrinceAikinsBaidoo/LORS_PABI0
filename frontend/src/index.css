@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --color-brand-black: #000000;
+  --color-brand-blue: #2563EB;
+  --color-teal-accent: #0ABFBC;
+  --color-teal-muted: #260ABFBC;
+  --color-teal-light: #E0F7F7;
+
+  --color-success: #2D7A4F;
+  --color-warning: #B45309;
+  --color-error: #B91C1C;
+  --color-error-dark: #F87171;
+  --color-badge-red: #DC2626;
+
+  --color-buy: #00FF88;
+  --color-sell: #FF3B5C;
+
+  --color-bg: #09090B;
+  --color-surface: #18181B;
+  --color-border: #3F3F46;
+  --color-divider: #27272A;
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #A1A1AA;
+  --color-text-muted: #71717A;
+  --color-primary: #3B82F6;
+
+  --color-bg-light: #FAFAFA;
+  --color-surface-light: #FFFFFF;
+  --color-border-light: #E5E7EB;
+  --color-text-primary-light: #0D0D0D;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.glass-card {
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #27272A 0%, #3F3F46 50%, #27272A 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}

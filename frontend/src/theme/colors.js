@@ -1,0 +1,41 @@
+export const AppTheme = {
+  brandBlack: '#000000',
+  brandBlue: '#2563EB',
+  tealAccent: '#0ABFBC',
+  tealMuted: '#260ABFBC',
+  tealLight: '#E0F7F7',
+  success: '#2D7A4F',
+  warning: '#B45309',
+  error: '#B91C1C',
+  errorDark: '#F87171',
+  badgeRed: '#DC2626',
+  buy: '#00FF88',
+  sell: '#FF3B5C',
+}
+
+export const AppColorScheme = {
+  dark: {
+    background: '#09090B',
+    surface: '#18181B',
+    border: '#3F3F46',
+    divider: '#27272A',
+    textPrimary: '#FAFAFA',
+    textSecondary: '#A1A1AA',
+    textMuted: '#71717A',
+    primary: '#3B82F6',
+    chipBackground: '#27272A',
+    shadow: 'rgba(0,0,0,0.08)',
+  },
+  light: {
+    background: '#FAFAFA',
+    surface: '#FFFFFF',
+    border: '#E5E7EB',
+    divider: '#F0F0F0',
+    textPrimary: '#0D0D0D',
+    textSecondary: '#536471',
+    textMuted: '#8B98A5',
+    primary: '#2563EB',
+    chipBackground: '#F5F5F5',
+    shadow: 'rgba(0,0,0,0.08)',
+  },
+}
