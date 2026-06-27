@@ -9,7 +9,7 @@ import { useUser } from '../context/UserContext'
 import { calcDollarRisk, formatPrice, mt5CopyString } from '../utils/risk'
 import { enrichWithProfitDollars } from '../utils/profitManagement'
 import { instrumentShort } from '../utils/instruments'
-import { logTrade } from '../utils/storage'
+import { logTrade, loadUser, wantsTelegram } from '../utils/storage'
 
 function enrichSignal(signal, user) {
   if (!signal?.entry) return signal
@@ -60,7 +60,13 @@ export default function LiveSignal() {
   const [toast, setToast] = useState('')
   const replayTimer = useRef(null)
   const explainCache = useRef({})
+  const telegramSent = useRef(new Set())
   const audioRef = useRef(null)
+
+  const showToast = useCallback((msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }, [])
 
   const stopVoice = useCallback(() => {
     if (audioRef.current) {
@@ -91,10 +97,19 @@ export default function LiveSignal() {
     }
   }, [stopVoice])
 
-  const showToast = (msg) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
+  const notifyTelegram = useCallback(async (sig, exp, isDemo) => {
+    if (!wantsTelegram(loadUser())) return
+    const key = `${sig.time}-${sig.direction}-${sig.instrument}`
+    if (telegramSent.current.has(key)) return
+    telegramSent.current.add(key)
+    try {
+      await api.telegramNotify(sig, exp, isDemo)
+      showToast('📨 Sent to Telegram')
+    } catch (err) {
+      console.warn('Telegram notify failed:', err.message)
+      showToast('Telegram failed — check channel setup')
+    }
+  }, [showToast])
 
   const clearReplayTimer = () => {
     if (replayTimer.current) {
@@ -128,7 +143,8 @@ export default function LiveSignal() {
     const exp = await fetchExplanation(sig)
     setExplanation(exp)
     speakSignal(sig, exp, true)
-  }, [user, fetchExplanation, speakSignal])
+    notifyTelegram(sig, exp, true)
+  }, [user, fetchExplanation, speakSignal, notifyTelegram])
 
   const startReplay = useCallback((signals, dateStr) => {
     clearReplayTimer()
@@ -177,6 +193,7 @@ export default function LiveSignal() {
     setLoading(true)
     stopReplay()
     explainCache.current = {}
+    telegramSent.current.clear()
     try {
       const data = await api.demoReplay(instrument, demoDate)
       setRange(data.range)
@@ -219,6 +236,7 @@ export default function LiveSignal() {
       setExplanation(exp)
       if (sigRes.signal && exp) {
         speakSignal(sigRes.signal, exp, false)
+        notifyTelegram(sigRes.signal, exp, false)
       }
       setStatusMsg(
         `${sigRes.session_status || 'London Session Active'} · Live price from Twelve Data`
@@ -228,7 +246,7 @@ export default function LiveSignal() {
     } finally {
       setLoading(false)
     }
-  }, [instrument, user, fetchExplanation, speakSignal])
+  }, [instrument, user, fetchExplanation, speakSignal, notifyTelegram])
 
   useEffect(() => {
     if (mode === 'demo' && demoDate) loadDemo()

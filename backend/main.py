@@ -21,6 +21,7 @@ from signal_engine import run_engine, signal_to_dict
 from snwolley_client import SnwolleyClient
 from instruments import INSTRUMENTS, instrument_label
 from trade_outcomes import enrich_signal_dict
+from telegram_notifier import is_configured as telegram_configured, notify_signal, send_message
 
 load_dotenv()
 
@@ -44,6 +45,9 @@ snwolley = SnwolleyClient()
 
 @app.on_event("startup")
 def startup():
+    from demo_data import ensure_demo_data
+
+    ensure_demo_data()
     prefetch_recent()
 
 
@@ -98,6 +102,21 @@ class VoiceRequest(BaseModel):
 class ReplayRequest(BaseModel):
     instrument: str = "XAUUSD"
     date: str | None = None
+
+
+class TelegramNotifyRequest(BaseModel):
+    instrument: str = "XAUUSD"
+    direction: str = "BUY"
+    type: str = "Sweep Low"
+    entry: float = 0
+    sl: float = 0
+    tp1: float = 0
+    tp2: float = 0
+    tp3: float = 0
+    time: str = ""
+    risk_pips: float = 0
+    explanation: str = ""
+    demo: bool = False
 
 
 def _explain_signal(signal: dict) -> str:
@@ -165,6 +184,7 @@ def health():
             "agents": snwolley.agents_configured,
             "tts": snwolley.tts_configured,
         },
+        "telegram": telegram_configured(),
     }
 
 
@@ -297,3 +317,29 @@ def demo_candles(instrument: str = Query("XAUUSD"), date: str | None = None):
 def demo_replay(req: ReplayRequest):
     date = req.date or replay_date_default()
     return _run_day(req.instrument, date)
+
+
+@app.post("/telegram/notify")
+def telegram_notify(req: TelegramNotifyRequest):
+    if not telegram_configured():
+        raise HTTPException(503, "Telegram not configured — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
+    try:
+        signal = req.model_dump()
+        explanation = signal.pop("explanation", "")
+        demo = signal.pop("demo", False)
+        result = notify_signal(signal, explanation, demo=demo)
+        return {"ok": True, "message_id": result.get("result", {}).get("message_id")}
+    except Exception as exc:
+        logger.warning("Telegram notify failed: %s", exc)
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.post("/telegram/test")
+def telegram_test():
+    if not telegram_configured():
+        raise HTTPException(503, "Telegram not configured")
+    try:
+        send_message("PipSense 🇬🇭 test — Telegram notifications are working!")
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(502, str(exc)) from exc

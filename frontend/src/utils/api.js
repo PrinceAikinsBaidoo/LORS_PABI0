@@ -36,4 +36,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ instrument, date }),
     }),
+  telegramNotify: (signal, explanation, demo = false) =>
+    request('/telegram/notify', {
+      method: 'POST',
+      body: JSON.stringify({ ...signal, explanation, demo }),
+    }),
+  telegramTest: () => request('/telegram/test', { method: 'POST' }),
 }

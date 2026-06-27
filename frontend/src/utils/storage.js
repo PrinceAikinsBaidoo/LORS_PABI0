@@ -6,7 +6,7 @@ export const defaultUser = {
   currency: 'USD',
   instruments: ['XAUUSD'],
   lotSize: 0.04,
-  notifications: 'web',
+  notifications: 'both',
   onboarded: false,
 }
 
@@ -21,6 +21,11 @@ export function loadUser() {
 
 export function saveUser(user) {
   localStorage.setItem(KEY, JSON.stringify(user))
+}
+
+export function wantsTelegram(user) {
+  const prefs = user?.notifications || loadUser().notifications
+  return prefs === 'telegram' || prefs === 'both'
 }
 
 const HISTORY_KEY = 'pipsense_trade_history'
